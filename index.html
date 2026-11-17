@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mac OS 9 — Google Drive Finder (GitHub Pages Edition)</title>
+  <!-- Google Identity Services (GIS) for client-side OAuth2 on GitHub Pages -->
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <style>
+    /* ==========================================================================
+       1. MAC OS 9 PLATINUM DESIGN TOKENS & PIXEL-CRISP TYPOGRAPHY
+       ========================================================================== */
+    :root {
+      --plat-bg: #DDDDDD;
+      --plat-light: #FFFFFF;
+      --plat-mid-light: #EEEEEE;
+      --plat-mid-dark: #BBBBBB;
+      --plat-dark: #888888;
+      --plat-shadow: #555555;
+      --plat-border: #000000;
+      --plat-accent: #666699;       /* Classic Mac OS 9 Lavender/Blue Accent */
+      --plat-accent-light: #9999CC;
+      --plat-accent-dark: #333366;
+      --plat-select-bg: #333366;
+      --plat-select-fg: #FFFFFF;
+      --desktop-teal: #3A6EA5;
+      --font-sys: "Charcoal", "Chicago", "Geneva", "PingFang TC", "Microsoft JhengHei", "Noto Sans TC", sans-serif;
+      --font-mono: "Monaco", "Courier New", monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--font-sys);
+      font-size: 12px;
+      color: #000;
+      background-color: #2c4c7a;
+      /* Classic Mac OS 9 Tiled Geometric Platinum Wallpaper Pattern */
+      background-image:
+        linear-gradient(45deg, rgba(255,255,255,0.06) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.06) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.08) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.08) 75%);
+      background-size: 16px 16px;
+      background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+    }
+
+    /* ==========================================================================
+       2. CLASSIC TOP APPLE MENU BAR
+       ========================================================================== */
+    #menubar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 22px;
+      background: linear-gradient(to bottom, #FFFFFF 0%, #DDDDDD 85%, #BBBBBB 100%);
+      border-bottom: 1px solid #000000;
+      box-shadow: 0 1px 0 rgba(255,255,255,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 6px;
+      z-index: 9000;
+    }
+
+    .menu-left, .menu-right {
+      display: flex;
+      align-items: center;
+      height: 100%;
+    }
+
+    .menu-item {
+      position: relative;
+      height: 21px;
+      padding: 0 9px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-weight: bold;
+      font-size: 12px;
+      cursor: default;
+      white-space: nowrap;
+    }
+
+    .menu-item:hover, .menu-item.active {
+      background-color: var(--plat-select-bg);
+      color: #FFFFFF;
+    }
+
+    .menu-dropdown {
+      display: none;
+      position: absolute;
+      top: 21px;
+      left: -1px;
+      min-width: 195px;
+      background: #DDDDDD;
+      border: 1px solid #000000;
+      box-shadow:
+        inset 1px 1px 0 #FFFFFF,
+        inset -1px -1px 0 #888888,
+        2px 2px 0 rgba(0,0,0,0.45);
+      padding: 2px 0;
+      z-index: 9500;
+      color: #000000;
+      font-weight: normal;
+    }
+
+    .menu-item.active .menu-dropdown {
+      display: block;
+    }
+
+    .dropdown-entry {
+      padding: 3px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      cursor: default;
+    }
+
+    .dropdown-entry:hover:not(.disabled) {
+      background-color: var(--plat-select-bg);
+      color: #FFFFFF;
+    }
+
+    .dropdown-entry.disabled {
+      color: #777777;
+      text-shadow: 1px 1px 0 #FFFFFF;
+    }
+
+    .dropdown-sep {
+      height: 1px;
+      background: #888888;
+      border-bottom: 1px solid #FFFFFF;
+      margin: 3px 2px;
+    }
+
+    .shortcut {
+      font-size: 11px;
+      opacity: 0.85;
+      margin-left: 14px;
+    }
+
+    #status-pill {
+      font-size: 11px;
+      padding: 1px 7px;
+      border: 1px solid #666;
+      background: #EEEEEE;
+      box-shadow: inset 1px 1px 0 #FFF;
+      margin-right: 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      cursor: pointer;
+    }
+
+    .status-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #E69500;
+      border: 1px solid #000;
+    }
+    .status-dot.live {
+      background: #22AA44;
+    }
+
+    /* ==========================================================================
+       3. DESKTOP WORKSPACE & ICONS
+       ========================================================================== */
+    #desktop {
+      position: absolute;
+      top: 22px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      overflow: hidden;
+    }
+
+    #desktop-icons {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      bottom: 42px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 16px;
+      z-index: 10;
+    }
+
+    .desk-icon {
+      width: 82px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      cursor: default;
+      padding: 3px;
+      border: 1px solid transparent;
+    }
+
+    .desk-icon.selected .icon-graphic {
+      filter: brightness(0.65) sepia(1) hue-rotate(200deg) saturate(3);
+    }
+
+    .desk-icon.selected .icon-label {
+      background-color: var(--plat-select-bg);
+      color: #FFFFFF;
+    }
+
+    .desk-icon.drag-over {
+      border: 1px dashed #FFFFFF;
+      background: rgba(255,255,255,0.2);
+    }
+
+    .icon-label {
+      margin-top: 3px;
+      padding: 1px 4px;
+      background: rgba(255, 255, 255, 0.88);
+      color: #000000;
+      font-size: 11px;
+      line-height: 1.25;
+      max-width: 80px;
+      word-break: break-word;
+    }
+
+    /* ==========================================================================
+       4. PLATINUM WINDOWS, PINSTRIPE TITLEBARS & SCROLLBARS
+       ========================================================================== */
+    .os9-window {
+      position: absolute;
+      background: #DDDDDD;
+      border: 1px solid #000000;
+      box-shadow:
+        inset 1px 1px 0 #FFFFFF,
+        inset -1px -1px 0 #888888,
+        3px 3px 0 rgba(0, 0, 0, 0.45);
+      display: flex;
+      flex-direction: column;
+      min-width: 260px;
+      min-height: 150px;
+    }
+
+    .os9-window.shaded {
+      height: 24px !important;
+      min-height: 24px !important;
+      overflow: hidden;
+    }
+
+    .os9-window.shaded .win-body,
+    .os9-window.shaded .win-resize {
+      display: none !important;
+    }
+
+    .win-titlebar {
+      height: 22px;
+      background: #DDDDDD;
+      border-bottom: 1px solid #000000;
+      display: flex;
+      align-items: center;
+      padding: 0 4px;
+      gap: 4px;
+      cursor: grab;
+      flex-shrink: 0;
+    }
+
+    .win-titlebar:active {
+      cursor: grabbing;
+    }
+
+    /* Classic Platinum Horizontal Pinstripes for Active Window */
+    .os9-window.active .win-stripes {
+      flex: 1;
+      height: 13px;
+      background-image: repeating-linear-gradient(
+        to bottom,
+        #FFFFFF 0px,
+        #FFFFFF 1px,
+        #777777 1px,
+        #777777 2px
+      );
+      border-top: 1px solid #999;
+      border-bottom: 1px solid #FFF;
+    }
+
+    .os9-window:not(.active) .win-stripes {
+      flex: 1;
+      height: 13px;
+    }
+
+    .win-title-text {
+      padding: 0 7px;
+      background: #DDDDDD;
+      font-weight: bold;
+      font-size: 12px;
+      color: #000000;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 65%;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .os9-window:not(.active) .win-title-text {
+      color: #666666;
+    }
+
+    /* Titlebar Buttons (Close, Zoom, WindowShade Collapse) */
+    .win-btn {
+      width: 13px;
+      height: 13px;
+      background: linear-gradient(135deg, #FFFFFF 0%, #CCCCCC 50%, #999999 100%);
+      border: 1px solid #000000;
+      box-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #777777;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    .win-btn:active {
+      background: #777777;
+      box-shadow: inset 1px 1px 0 #333333;
+    }
+
+    .win-btn-zoom::after {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-right: 1px solid #000;
+      border-bottom: 1px solid #000;
+      margin-top: -2px;
+      margin-left: -2px;
+    }
+
+    .win-btn-shade::after {
+      content: "";
+      width: 7px;
+      height: 3px;
+      border-top: 1px solid #000;
+      border-bottom: 1px solid #000;
+    }
+
+    .win-body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      margin: 2px 4px 4px 4px;
+      border: 1px solid #000000;
+      background: #FFFFFF;
+      box-shadow: -1px -1px 0 #888888, 1px 1px 0 #FFFFFF;
+    }
+
+    /* Finder Toolbar & Status Strip */
+    .finder-toolbar {
+      background: #DDDDDD;
+      border-bottom: 1px solid #888888;
+      padding: 4px 6px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+    }
+
+    .finder-info-bar {
+      background: #EEEEEE;
+      border-bottom: 1px solid #999999;
+      padding: 2px 8px;
+      font-size: 11px;
+      display: flex;
+      justify-content: space-between;
+      color: #222;
+    }
+
+    .finder-content {
+      flex: 1;
+      overflow: auto;
+      background: #FFFFFF;
+      position: relative;
+    }
+
+    /* Classic Platinum Scrollbars */
+    ::-webkit-scrollbar {
+      width: 16px;
+      height: 16px;
+      background: #CCCCCC;
+    }
+    ::-webkit-scrollbar-track {
+      background: #BBBBBB;
+      border-left: 1px solid #000;
+      border-top: 1px solid #000;
+      box-shadow: inset 1px 1px 0 #888;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #DDDDDD;
+      border: 1px solid #000;
+      box-shadow: inset 1px 1px 0 #FFF, inset -1px -1px 0 #777;
+    }
+
+    /* Platinum 3D Push Buttons */
+    .plat-btn {
+      background: linear-gradient(to bottom, #FFFFFF 0%, #DDDDDD 50%, #CCCCCC 100%);
+      border: 1px solid #000000;
+      border-radius: 3px;
+      box-shadow: inset 1px 1px 0 #FFFFFF, inset -1px -1px 0 #888888;
+      padding: 3px 10px;
+      font-family: var(--font-sys);
+      font-size: 11px;
+      color: #000;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .plat-btn:hover {
+      background: linear-gradient(to bottom, #FFFFFF 0%, #E8E8E8 100%);
+    }
+
+    .plat-btn:active {
+      background: #888888;
+      color: #FFFFFF;
+      box-shadow: inset 1px 1px 0 #333333;
+    }
+
+    .plat-btn.primary {
+      box-shadow:
+        0 0 0 1px #DDDDDD,
+        0 0 0 3px #000000,
+        inset 1px 1px 0 #FFFFFF,
+        inset -1px -1px 0 #888888;
+      font-weight: bold;
+    }
+
+    .plat-input {
+      background: #FFFFFF;
+      border: 1px solid #000000;
+      box-shadow: inset 1px 1px 0 #888888;
+      padding: 3px 6px;
+      font-family: var(--font-sys);
+      font-size: 12px;
+      color: #000;
+      outline: none;
+      user-select: text;
+      -webkit-user-select: text;
+    }
+
+    .plat-input:focus {
+      outline: 2px solid var(--plat-accent-light);
+    }
+
+    /* Resize Handle */
+    .win-resize {
+      position: absolute;
+      right: 1px;
+      bottom: 1px;
+      width: 14px;
+      height: 14px;
+      cursor: nwse-resize;
+      background: linear-gradient(135deg, transparent 40%, #888 45%, #FFF 50%, #888 60%, #FFF 65%, #888 75%, #FFF 80%);
+      z-index: 5;
+    }
+
+    /* ==========================================================================
+       5. FINDER ICON VIEW & LIST VIEW
+       ========================================================================== */
+    .icon-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+      gap: 12px 6px;
+      padding: 14px;
+      align-items: start;
+    }
+
+    .file-icon-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 4px;
+      cursor: default;
+    }
+
+    .file-icon-item.selected .file-svg {
+      filter: brightness(0.65) sepia(1) hue-rotate(205deg) saturate(3);
+    }
+
+    .file-icon-item.selected .file-name {
+      background: var(--plat-select-bg);
+      color: #FFFFFF;
+    }
+
+    .file-name {
+      margin-top: 4px;
+      padding: 1px 4px;
+      font-size: 11px;
+      line-height: 1.25;
+      max-width: 88px;
+      word-break: break-word;
+    }
+
+    /* List View Table */
+    .list-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .list-table th {
+      position: sticky;
+      top: 0;
+      background: linear-gradient(to bottom, #EEEEEE, #CCCCCC);
+      border-bottom: 1px solid #000;
+      border-right: 1px solid #888;
+      padding: 3px 8px;
+      text-align: left;
+      font-weight: bold;
+      cursor: pointer;
+      z-index: 2;
+    }
+
+    .list-table th.sorted {
+      background: linear-gradient(to bottom, #CCCCCC, #AAAAAA);
+    }
+
+    .list-table td {
+      padding: 3px 8px;
+      border-bottom: 1px solid #EEEEEE;
+      white-space: nowrap;
+    }
+
+    .list-table tr:nth-child(even) {
+      background: #F6F8FC;
+    }
+
+    .list-table tr.selected {
+      background: var(--plat-select-bg) !important;
+      color: #FFFFFF;
+    }
+
+    /* ==========================================================================
+       6. CLASSIC CONTROL STRIP (BOTTOM LEFT)
+       ========================================================================== */
+    #control-strip {
+      position: fixed;
+      left: 0;
+      bottom: 8px;
+      height: 28px;
+      background: #DDDDDD;
+      border: 1px solid #000000;
+      border-left: none;
+      border-radius: 0 5px 5px 0;
+      box-shadow:
+        inset 1px 1px 0 #FFFFFF,
+        inset -1px -1px 0 #888888,
+        2px 2px 0 rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      padding: 0 4px 0 2px;
+      gap: 2px;
+      z-index: 8500;
+      transition: transform 0.18s ease;
+    }
+
+    #control-strip.collapsed {
+      transform: translateX(calc(-100% + 16px));
+    }
+
+    .cs-module {
+      height: 22px;
+      padding: 0 7px;
+      border-right: 1px solid #999;
+      border-left: 1px solid #FFF;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .cs-module:hover {
+      background: #CCCCCC;
+    }
+
+    .cs-tab {
+      width: 12px;
+      height: 24px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 10px;
+      color: #444;
+    }
+
+    /* ==========================================================================
+       7. CLASSIC MODAL ALERT DIALOG & BARBER-POLE PROGRESS BAR
+       ========================================================================== */
+    #modal-backdrop {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.18);
+      z-index: 9800;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #modal-backdrop.show {
+      display: flex;
+    }
+
+    .os9-dialog {
+      width: 400px;
+      max-width: 92vw;
+      background: #DDDDDD;
+      border: 1px solid #000000;
+      box-shadow:
+        inset 2px 2px 0 #FFFFFF,
+        inset -2px -2px 0 #888888,
+        4px 4px 0 rgba(0,0,0,0.5);
+      padding: 16px;
+    }
+
+    .barber-pole {
+      width: 100%;
+      height: 14px;
+      border: 1px solid #000;
+      background-color: #9999CC;
+      background-image: repeating-linear-gradient(
+        -45deg,
+        #333366 0px,
+        #333366 8px,
+        #9999CC 8px,
+        #9999CC 16px
+      );
+      background-size: 22.6px 22.6px;
+      animation: barberMove 0.6s linear infinite;
+    }
+
+    @keyframes barberMove {
+      0% { background-position: 0 0; }
+      100% { background-position: 22.6px 0; }
+    }
+
+    /* Breadcrumb Bar */
+    .breadcrumb-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+      flex-wrap: wrap;
+    }
+    .crumb {
+      cursor: pointer;
+      padding: 1px 4px;
+      border-radius: 2px;
+    }
+    .crumb:hover {
+      background: var(--plat-select-bg);
+      color: #FFF;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ========================================================================
+       CLASSIC TOP APPLE MENU BAR
+       ======================================================================== -->
+  <header id="menubar">
+    <div class="menu-left">
+      <!-- Rainbow Apple Menu -->
+      <div class="menu-item" data-menu="apple">
+        <svg width="14" height="16" viewBox="0 0 14 16" aria-label="Apple Menu">
+          <path d="M9.5 1.2c.6-.7 1-1.7.9-2.7-.9.1-2 .6-2.6 1.3-.5.6-1 1.6-.9 2.6 1 .1 2-.5 2.6-1.2z" transform="translate(0,2.7)" fill="#61BB46"/>
+          <path d="M11.8 8.4c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.7-1.3-.1-2.5.8-3.2.8-.7 0-1.7-.8-2.8-.7-1.4 0-2.7.8-3.5 2.1-1.5 2.6-.4 6.4 1 8.5.7 1 1.5 2.2 2.6 2.1 1 0 1.4-.7 2.7-.7 1.3 0 1.6.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3-.1 0-1.9-.7-1.9-3.6z" fill="url(#rainbowApple)"/>
+          <defs>
+            <linearGradient id="rainbowApple" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#61BB46"/>
+              <stop offset="28%" stop-color="#61BB46"/>
+              <stop offset="28%" stop-color="#FDB827"/>
+              <stop offset="45%" stop-color="#FDB827"/>
+              <stop offset="45%" stop-color="#F5821F"/>
+              <stop offset="62%" stop-color="#F5821F"/>
+              <stop offset="62%" stop-color="#E03A3E"/>
+              <stop offset="78%" stop-color="#E03A3E"/>
+              <stop offset="78%" stop-color="#963D97"/>
+              <stop offset="90%" stop-color="#963D97"/>
+              <stop offset="90%" stop-color="#009DDC"/>
+              <stop offset="100%" stop-color="#009DDC"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <div class="menu-dropdown">
+          <div class="dropdown-entry" onclick="openAboutDialog()">關於這部 Macintosh...</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-entry" onclick="openDriveWindow()">Google Drive 檔案總管</div>
+          <div class="dropdown-entry" onclick="openSetupWindow()">Google Drive API 連線設定...</div>
+          <div class="dropdown-entry" onclick="openNewTextWindow()">簡易文字 (SimpleText)</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-entry" onclick="toggleSound()">切換白金系統音效 (<span id="menu-sound-state">開啟</span>)</div>
+        </div>
+      </div>
+
+      <!-- File Menu (檔案) -->
+      <div class="menu-item" data-menu="file">
+        檔案
+        <div class="menu-dropdown">
+          <div class="dropdown-entry" onclick="promptNewFolder()">新增檔案夾<span class="shortcut">⌘N</span></div>
+          <div class="dropdown-entry" onclick="openNewTextWindow()">新增純文字文件<span class="shortcut">⌘T</span></div>
+          <div class="dropdown-entry" onclick="triggerFileUpload()">上傳本機檔案至 Drive...<span class="shortcut">⌘U</span></div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-entry" onclick="openSelectedItem()">開啟所選項目<span class="shortcut">⌘O</span></div>
+          <div class="dropdown-entry" onclick="openGetInfo()">簡介 (Get Info)<span class="shortcut">⌘I</span></div>
+          <div class="dropdown-entry" onclick="promptRenameSelected()">重新命名...</div>
+          <div class="dropdown-entry" onclick="downloadSelectedItem()">下載檔案</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-entry" onclick="moveSelectedToTrash()">丟進垃圾桶<span class="shortcut">⌘⌫</span></div>
+        </div>
+      </div>
+
+      <!-- Edit Menu (編輯) -->
+      <div class="menu-item" data-menu="edit">
+        編輯
+        <div class="menu-dropdown">
+          <div class="dropdown-entry" onclick="selectAllItems()">全選<span class="shortcut">⌘A</span></div>
+          <div class="dropdown-entry" onclick="clearSelection()">取消選取</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-entry" onclick="copyShareLink()">複製 Google Drive 連結</div>
+        </div>
+      </div>
+
+      <!-- View Menu (顯示方式) -->
+      <div class="menu-item" data-menu="view">
+        顯示方式
+        <div class="menu-dropdown">
+          <div class="dropdown-entry" onclick="setViewMode('icon')">圖像 (Icon View)</div>
+          <div class="dropdown-entry" onclick="setViewMode('list')">列表 (List View)</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-entry" onclick="sortItemsBy('name')">依名稱排列</div>
+          <div class="dropdown-entry" onclick="sortItemsBy('modifiedTime')">依修改日期排列</div>
+          <div class="dropdown-entry" onclick="sortItemsBy('size')">依大小排列</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-entry" onclick="refreshDrive()">重新整理雲端目錄<span class="shortcut">⌘R</span></div>
+        </div>
+      </div>
+
+      <!-- Special Menu (特別功能) -->
+      <div class="menu-item" data-menu="special">
+        特別功能
+        <div class="menu-dropdown">
+          <div class="dropdown-entry" onclick="openTrashWindow()">開啟垃圾桶</div>
+          <div class="dropdown-entry" onclick="confirmEmptyTrash()">清空垃圾桶...</div>
+          <div class="dropdown-sep"></div>
+          <div class="dropdown-entry" onclick="resetDemoData()">重置展示模式範例資料</div>
+          <div class="dropdown-entry" onclick="signOutGoogle()">登出 Google 帳號</div>
+        </div>
+      </div>
+
+      <!-- Help Menu (輔助說明) -->
+      <div class="menu-item" data-menu="help">
+        輔助說明
+        <div class="menu-dropdown">
+          <div class="dropdown-entry" onclick="openSetupWindow()">GitHub Pages 部署與 OAuth 設定指南</div>
+          <div class="dropdown-entry" onclick="openAboutDialog()">Mac OS 9 快捷鍵與功能說明</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="menu-right">
+      <div id="status-pill" onclick="openSetupWindow()" title="點擊切換連線設定">
+        <span id="status-dot" class="status-dot"></span>
+        <span id="status-label">展示模式 (Demo)</span>
+      </div>
+      <div class="menu-item" style="font-weight:normal; font-size:11px;" id="clock-display">上午 05:15</div>
+      <div class="menu-item" onclick="openDriveWindow()" title="Finder">
+        <svg width="14" height="14" viewBox="0 0 16 16">
+          <rect x="1" y="1" width="14" height="14" rx="2" fill="#88AADD" stroke="#000"/>
+          <path d="M8 1v14" stroke="#000"/>
+          <circle cx="5" cy="6" r="1" fill="#000"/>
+          <circle cx="11" cy="6" r="1" fill="#000"/>
+          <path d="M4.5 10.5c1.5 1.5 5.5 1.5 7 0" fill="none" stroke="#000" stroke-width="1.2"/>
+        </svg>
+        <span class="hidden sm:inline">Finder</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ========================================================================
+       DESKTOP WORKSPACE & CLASSIC DESKTOP ICONS
+       ======================================================================== -->
+  <main id="desktop" onclick="handleDesktopClick(event)">
+    <div id="desktop-icons">
+      <!-- Macintosh HD -->
+      <div class="desk-icon" data-desk="hd" onclick="selectDeskIcon(event, 'hd')" ondblclick="openSetupWindow()">
+        <div class="icon-graphic">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <rect x="4" y="8" width="28" height="20" rx="2" fill="#DDDDDD" stroke="#000" stroke-width="1.5"/>
+            <rect x="6" y="10" width="24" height="12" fill="#FFFFFF"/>
+            <rect x="7" y="23" width="6" height="2" fill="#44AA44"/>
+            <line x1="22" y1="24" x2="29" y2="24" stroke="#666" stroke-width="1.5"/>
+          </svg>
+        </div>
+        <div class="icon-label">Macintosh HD</div>
+      </div>
+
+      <!-- Google Drive Volume -->
+      <div class="desk-icon" data-desk="gdrive" onclick="selectDeskIcon(event, 'gdrive')" ondblclick="openDriveWindow()">
+        <div class="icon-graphic">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <rect x="4" y="7" width="28" height="22" rx="3" fill="#DDE6F5" stroke="#000" stroke-width="1.5"/>
+            <polygon points="18,11 25,23 11,23" fill="none" stroke="#3366CC" stroke-width="2.2"/>
+            <line x1="13" y1="20" x2="23" y2="20" stroke="#22AA55" stroke-width="2.2"/>
+            <line x1="18" y1="11" x2="13" y2="20" stroke="#EEAA11" stroke-width="2.2"/>
+          </svg>
+        </div>
+        <div class="icon-label">Google Drive</div>
+      </div>
+
+      <!-- API Setup / GitHub Config -->
+      <div class="desk-icon" data-desk="setup" onclick="selectDeskIcon(event, 'setup')" ondblclick="openSetupWindow()">
+        <div class="icon-graphic">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <rect x="5" y="5" width="26" height="26" rx="2" fill="#CCCCCC" stroke="#000" stroke-width="1.5"/>
+            <rect x="8" y="8" width="20" height="20" fill="#EEEEEE" stroke="#777"/>
+            <circle cx="18" cy="18" r="5" fill="#666699" stroke="#000" stroke-width="1.5"/>
+            <path d="M18 10v3M18 23v3M10 18h3M23 18h3" stroke="#000" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="icon-label">API 連線設定</div>
+      </div>
+
+      <!-- Trash Can (Supports Drag & Drop!) -->
+      <div class="desk-icon" id="desk-trash" data-desk="trash"
+           onclick="selectDeskIcon(event, 'trash')"
+           ondblclick="openTrashWindow()"
+           ondragover="handleTrashDragOver(event)"
+           ondragleave="handleTrashDragLeave(event)"
+           ondrop="handleTrashDrop(event)">
+        <div class="icon-graphic" id="trash-svg-container">
+          <!-- Dynamically updated empty/full trash SVG -->
+        </div>
+        <div class="icon-label">垃圾桶</div>
+      </div>
+    </div>
+
+    <!-- Dynamic Windows Layer -->
+    <div id="windows-layer"></div>
+  </main>
+
+  <!-- Hidden File Input for Local Upload -->
+  <input type="file" id="hidden-file-input" multiple style="display:none" onchange="handleLocalFilesSelected(event)" />
+
+  <!-- ========================================================================
+       CLASSIC BOTTOM-LEFT CONTROL STRIP (控制條)
+       ======================================================================== -->
+  <aside id="control-strip">
+    <div class="cs-module" onclick="openSetupWindow()" title="切換 Demo / Google 帳號連線">
+      <span>🔌</span>
+      <span id="cs-mode-text">Demo</span>
+    </div>
+    <div class="cs-module" onclick="triggerFileUpload()" title="上傳檔案至目前資料夾">
+      <span>📤</span>
+      <span>上傳</span>
+    </div>
+    <div class="cs-module" onclick="promptNewFolder()" title="新增資料夾">
+      <span>📁</span>
+      <span>新資料夾</span>
+    </div>
+    <div class="cs-module" onclick="toggleViewMode()" title="切換圖像/列表顯示">
+      <span>🗂️</span>
+      <span id="cs-view-text">圖像</span>
+    </div>
+    <div class="cs-module" onclick="toggleSound()" title="開啟或關閉白金音效">
+      <span id="cs-sound-icon">🔊</span>
+    </div>
+    <div class="cs-tab" onclick="toggleControlStrip()" title="收合/展開控制條">◀</div>
+  </aside>
+
+  <!-- ========================================================================
+       CLASSIC MAC OS 9 ALERT / PROGRESS MODAL DIALOG
+       ======================================================================== -->
+  <div id="modal-backdrop">
+    <div class="os9-dialog" id="modal-box">
+      <div style="display:flex; gap:14px; align-items:flex-start;">
+        <div id="modal-icon" style="flex-shrink:0;"></div>
+        <div style="flex:1;">
+          <div id="modal-title" style="font-weight:bold; font-size:13px; margin-bottom:6px;">提示</div>
+          <div id="modal-message" style="font-size:12px; line-height:1.45; margin-bottom:12px; user-select:text;"></div>
+          <div id="modal-extra"></div>
+        </div>
+      </div>
+      <div id="modal-buttons" style="display:flex; justify-content:flex-end; gap:8px; margin-top:12px;"></div>
+    </div>
+  </div>
+
+  <script>
+(() => {
+"use strict";
+const DEFAULT_CLIENT_ID="375971288943-097rhbub5h2d06f1g5lqs60in6pofj22.apps.googleusercontent.com";
+const SCOPES="https://www.googleapis.com/auth/drive";
+const KEY_ID="os9_gdrive_client_id", KEY_FS="os9_gdrive_demo_fs_v2";
+const $=id=>document.getElementById(id);
+const state={mode:"demo",clientId:localStorage.getItem(KEY_ID)||DEFAULT_CLIENT_ID,accessToken:null,tokenClient:null,userEmail:"",soundEnabled:true,items:[],folderId:"root",folderStack:[],selected:null,view:"icon",sort:"name",trash:[],z:20,winCount:0};
+const now=()=>new Date().toISOString();
+const seed=()=>[
+{id:"demo-folder-work",name:"工作文件",mimeType:"application/vnd.google-apps.folder",modifiedTime:now(),size:0},
+{id:"demo-folder-photo",name:"圖片收藏",mimeType:"application/vnd.google-apps.folder",modifiedTime:now(),size:0},
+{id:"demo-readme",name:"歡迎使用 Mac OS 9.txt",mimeType:"text/plain",modifiedTime:now(),size:248,content:"歡迎來到 Mac OS 9 Google Drive 桌面！\n\n展示模式可離線操作檔案與資料夾。\n連線 Google Drive 後即可管理雲端檔案。"},
+{id:"demo-pdf",name:"使用說明.pdf",mimeType:"application/pdf",modifiedTime:now(),size:102400},
+{id:"demo-image",name:"Macintosh.jpg",mimeType:"image/jpeg",modifiedTime:now(),size:204800}
+];
+function loadFS(){try{return JSON.parse(localStorage.getItem(KEY_FS))||{files:seed(),trash:[]}}catch(e){return{files:seed(),trash:[]}}}
+function saveFS(){localStorage.setItem(KEY_FS,JSON.stringify({files:state.files,trash:state.trash}))}
+let fs=loadFS();state.files=fs.files;state.trash=fs.trash;
+function sound(){if(!state.soundEnabled)return;try{const C=window.AudioContext||window.webkitAudioContext;if(!C)return;const c=new C(),o=c.createOscillator(),g=c.createGain();o.connect(g);g.connect(c.destination);o.frequency.value=660;g.gain.value=.025;o.start();o.stop(c.currentTime+.045);o.onended=()=>c.close()}catch(e){}}
+function alertBox(title,msg){const back=$("modal-backdrop");$("modal-title").textContent=title;$("modal-message").textContent=msg;$("modal-icon").textContent="ℹ️";$("modal-extra").innerHTML="";$("modal-buttons").innerHTML='<button class="plat-btn primary" id="modal-ok">確定</button>' ;back.classList.add("show");$("modal-ok").onclick=()=>back.classList.remove("show")}
+function ask(title,msg,initial=""){return window.prompt(msg,initial)}
+function esc(v){return String(v??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function isFolder(f){return f.mimeType==="application/vnd.google-apps.folder"}
+function updateConnectionUI(){const live=state.mode==="live";$("status-dot").classList.toggle("live",live);$("status-label").textContent=live?(state.userEmail||"Google Drive 已連線"):"展示模式 (Demo)";$("cs-mode-text").textContent=live?"Live":"Demo";const b=$("finder-google-login-btn");if(b){b.textContent=live?"🟢 已連線 Drive":"🔑 登入 Google Drive";b.onclick=live?openSetupWindow:initGoogleClient}}
+function getCurrentFiles(){return state.items.filter(f=>(f.parents||[]).includes(state.folderId)||(!f.parents&&state.folderId==="root")).sort((a,b)=>{let x=a[state.sort]??"",y=b[state.sort]??"";return String(x).localeCompare(String(y),"zh-Hant",{numeric:true})})}
+function iconFor(f){if(isFolder(f))return "📁";if(f.mimeType?.startsWith("image/"))return "🖼️";if(f.mimeType==="application/pdf")return "📕";if(f.mimeType?.includes("spreadsheet"))return "📊";if(f.mimeType?.includes("document")||f.mimeType==="text/plain")return "📄";return "📦"}
+function renderDrive(){const win=$("finder-content");if(!win)return;const files=getCurrentFiles();$("finder-info-count").textContent=`${files.length} 個項目`;const crumb=$("finder-breadcrumb");if(crumb)crumb.innerHTML=`<span class="crumb" onclick="goRoot()">Macintosh HD</span> / <span class="crumb">${esc(state.folderName||"Google Drive")}</span>`;if(state.view==="icon"){win.innerHTML='<div class="icon-grid">'+files.map(f=>`<div class="file-icon-item ${state.selected===f.id?"selected":""}" data-id="${esc(f.id)}" onclick="selectItem('${esc(f.id)}')" ondblclick="openItem('${esc(f.id)}')"><div class="file-svg" style="font-size:34px">${iconFor(f)}</div><div class="file-name">${esc(f.name)}</div></div>`).join("")+'</div>'}else{win.innerHTML='<table class="list-table"><thead><tr><th>名稱</th><th>種類</th><th>修改日期</th><th>大小</th></tr></thead><tbody>'+files.map(f=>`<tr class="${state.selected===f.id?"selected":""}" onclick="selectItem('${esc(f.id)}')" ondblclick="openItem('${esc(f.id)}')"><td>${iconFor(f)} ${esc(f.name)}</td><td>${isFolder(f)?"資料夾":esc(f.mimeType||"檔案")}</td><td>${f.modifiedTime?new Date(f.modifiedTime).toLocaleString():"—"}</td><td>${f.size?formatSize(f.size):"—"}</td></tr>`).join("")+'</tbody></table>'} }
+function formatSize(n){return n<1024?n+" B":(n/1024).toFixed(1)+" KB"}
+async function api(path,opts={}){if(!state.accessToken)throw Error("尚未登入 Google");const r=await fetch("https://www.googleapis.com/drive/v3/"+path,{...opts,headers:{Authorization:"Bearer "+state.accessToken,...(opts.headers||{})}});if(!r.ok){const t=await r.text();throw Error("Google Drive API "+r.status+": "+t.slice(0,250))}return r.status===204?null:r.json()}
+async function refreshDrive(){try{if(state.mode==="live"){const q=state.folderId==="root"?"'root' in parents":`'${state.folderId}' in parents`;const d=await api("files?q="+encodeURIComponent(q+" and trashed=false")+"&pageSize=1000&orderBy=name&fields=files(id,name,mimeType,modifiedTime,size,parents,webViewLink)");state.items=d.files||[]}else state.items=state.files.filter(f=>!state.trash.some(t=>t.id===f.id));renderDrive()}catch(e){alertBox("讀取失敗",e.message)}}
+function createWindow(title,html,w=620,h=420){const layer=$("windows-layer"),id="win-"+(++state.winCount),el=document.createElement("section");el.className="os9-window active";el.id=id;el.style.cssText=`left:${Math.max(8,(innerWidth-w)/2+state.winCount*12)}px;top:${Math.max(35,(innerHeight-h)/2+state.winCount*8)}px;width:min(${w}px,94vw);height:min(${h}px,82vh);z-index:${++state.z}`;el.innerHTML=`<div class="win-titlebar"><div class="win-btn" onclick="closeWindow('${id}')"></div><div class="win-stripes"></div><div class="win-title-text">${esc(title)}</div><div class="win-stripes"></div><div class="win-btn win-btn-shade" onclick="shadeWindow('${id}')"></div></div><div class="win-body">${html}</div><div class="win-resize"></div>`;layer.appendChild(el);makeWindowDraggable(el);return el}
+function makeWindowDraggable(el){const bar=el.querySelector(".win-titlebar");let x,y,l,t,drag=false;bar.addEventListener("pointerdown",e=>{if(e.target.closest(".win-btn"))return;drag=true;x=e.clientX;y=e.clientY;l=el.offsetLeft;t=el.offsetTop;el.style.zIndex=++state.z;bar.setPointerCapture(e.pointerId)});bar.addEventListener("pointermove",e=>{if(!drag)return;el.style.left=Math.max(0,l+e.clientX-x)+"px";el.style.top=Math.max(22,t+e.clientY-y)+"px"});bar.addEventListener("pointerup",()=>drag=false);const r=el.querySelector(".win-resize");if(r){let sx,sy,sw,sh;r.addEventListener("pointerdown",e=>{e.stopPropagation();sx=e.clientX;sy=e.clientY;sw=el.offsetWidth;sh=el.offsetHeight;r.setPointerCapture(e.pointerId)});r.addEventListener("pointermove",e=>{if(!r.hasPointerCapture(e.pointerId))return;el.style.width=Math.max(260,sw+e.clientX-sx)+"px";el.style.height=Math.max(150,sh+e.clientY-sy)+"px"})}}
+function closeWindow(id){$(id)?.remove()}function shadeWindow(id){$(id)?.classList.toggle("shaded")}
+function openDriveWindow(){let old=$("finder-window");if(old){old.style.zIndex=++state.z;return}const el=createWindow("Google Drive — Finder",`<div class="finder-toolbar"><div style="display:flex;gap:5px;flex-wrap:wrap"><button class="plat-btn" onclick="navigateUpFolder()">⬆ 上一層</button><button class="plat-btn" onclick="promptNewFolder()">📁 新資料夾</button><button class="plat-btn" onclick="triggerFileUpload()">📤 上傳</button><button class="plat-btn" onclick="refreshDrive()">🔄 重新整理</button><button class="plat-btn primary" id="finder-google-login-btn" onclick="initGoogleClient()">🔑 登入 Google Drive</button></div><div class="breadcrumb-bar" id="finder-breadcrumb">Google Drive</div></div><div class="finder-info-bar"><span id="finder-info-count">載入中</span><span>Mac OS 9 Finder</span></div><div class="finder-content" id="finder-content"></div>` ,700,470);el.id="finder-window";refreshDrive();updateConnectionUI()}
+function openSetupWindow(){createWindow("Google Drive API 連線設定",`<div style="padding:16px;overflow:auto;line-height:1.6"><h3>Google Drive OAuth 2.0 設定</h3><p>請使用 Google Cloud Console 建立 OAuth 用戶端 ID（網頁應用程式），並將目前網站網域加入「已授權的 JavaScript 來源」。</p><p>Client ID</p><input class="plat-input" id="input-client-id" style="width:100%" value="${esc(state.clientId)}"><p style="margin-top:12px">連線使用 Google Drive API。登入後可讀取、上傳、新增資料夾、重新命名及移至垃圾桶。</p><button class="plat-btn primary" onclick="saveAndConnectGoogle()">🚀 儲存並登入 Google</button> <button class="plat-btn" onclick="resetDefaultClientId()">恢復預設 Client ID</button>${state.mode==="live"?' <button class="plat-btn" onclick="signOutGoogle()">登出</button>':""}<p style="color:#555">注意：若 OAuth 顯示 redirect_uri 或 origin 錯誤，請確認 OAuth 用戶端類型為「網頁應用程式」，並加入目前網站網址。</p></div>`,500,370)}
+function initGoogleClient(){if(!window.google?.accounts?.oauth2){alertBox("Google 登入尚未載入","請確認網路連線，稍候重新嘗試。");return}try{state.tokenClient=google.accounts.oauth2.initTokenClient({client_id:state.clientId.trim(),scope:SCOPES,callback:async r=>{if(r.error){alertBox("Google 登入失敗",r.error);return}state.accessToken=r.access_token;state.mode="live";try{const u=await fetch("https://www.googleapis.com/drive/v3/about?fields=user(emailAddress)",{headers:{Authorization:"Bearer "+state.accessToken}});if(u.ok){const d=await u.json();state.userEmail=d.user?.emailAddress||""}}catch(e){}updateConnectionUI();openDriveWindow();refreshDrive()}});state.tokenClient.requestAccessToken({prompt:"consent"})}catch(e){alertBox("OAuth 初始化失敗",e.message)}}
+function saveAndConnectGoogle(){const v=$("input-client-id")?.value.trim();if(v){state.clientId=v;localStorage.setItem(KEY_ID,v)}initGoogleClient()}
+function resetDefaultClientId(){state.clientId=DEFAULT_CLIENT_ID;localStorage.setItem(KEY_ID,DEFAULT_CLIENT_ID);if($("input-client-id"))$("input-client-id").value=DEFAULT_CLIENT_ID;alertBox("已恢復預設認證","Client ID 已恢復。請確認該 OAuth 用戶端已設定目前網站來源。")}
+function signOutGoogle(){state.accessToken=null;state.mode="demo";state.userEmail="";state.folderId="root";state.folderStack=[];updateConnectionUI();refreshDrive();alertBox("已登出","已切回展示模式。")}
+function selectItem(id){state.selected=id;renderDrive();sound()}
+function openItem(id){const f=state.items.find(x=>x.id===id);if(!f)return;if(isFolder(f)){state.folderStack.push({id:state.folderId,name:state.folderName||"Google Drive"});state.folderId=id;state.folderName=f.name;refreshDrive()}else if(state.mode==="live"){window.open(f.webViewLink||`https://drive.google.com/file/d/${f.id}/view`,"_blank","noopener")}else{alertBox(f.name,f.content||"這是展示用範例檔案。")}
+}
+function navigateUpFolder(){const p=state.folderStack.pop();state.folderId=p?.id||"root";state.folderName=p?.name||"Google Drive";refreshDrive()}function goRoot(){state.folderStack=[];state.folderId="root";state.folderName="Google Drive";refreshDrive()}
+async function promptNewFolder(){const name=ask("新增資料夾","請輸入資料夾名稱：");if(!name?.trim())return;try{if(state.mode==="live"){await api("files",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:name.trim(),mimeType:"application/vnd.google-apps.folder",parents:state.folderId==="root"?[]:[state.folderId]})})}else{state.files.push({id:"demo-"+Date.now(),name:name.trim(),mimeType:"application/vnd.google-apps.folder",parents:state.folderId==="root"?[]:[state.folderId],modifiedTime:now(),size:0});saveFS()}refreshDrive()}catch(e){alertBox("新增失敗",e.message)}}
+function triggerFileUpload(){$("hidden-file-input").click()}
+async function handleLocalFilesSelected(e){const files=[...e.target.files];for(const f of files){try{if(state.mode==="live"){const meta={name:f.name,parents:state.folderId==="root"?[]:[state.folderId]};const form=new FormData();form.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));form.append("file",f);const r=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,mimeType,modifiedTime,size,parents,webViewLink",{method:"POST",headers:{Authorization:"Bearer "+state.accessToken},body:form});if(!r.ok)throw Error(await r.text());}else{const data=await readAsDataURL(f);state.files.push({id:"demo-"+Date.now()+"-"+Math.random().toString(36).slice(2),name:f.name,mimeType:f.type||"application/octet-stream",parents:state.folderId==="root"?[]:[state.folderId],modifiedTime:now(),size:f.size,content:f.type.startsWith("text/")?await f.text():data});saveFS()}}catch(err){alertBox("上傳失敗",f.name+": "+err.message);break}}e.target.value="";refreshDrive()}
+function readAsDataURL(f){return new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f)})}
+async function promptRenameSelected(){const f=state.items.find(x=>x.id===state.selected);if(!f){alertBox("重新命名","請先選取一個項目。");return}const n=ask("重新命名","新名稱：",f.name);if(!n?.trim())return;try{if(state.mode==="live")await api("files/"+f.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({name:n.trim()})});else{f.name=n.trim();f.modifiedTime=now();saveFS()}refreshDrive()}catch(e){alertBox("重新命名失敗",e.message)}}
+async function moveSelectedToTrash(){const f=state.items.find(x=>x.id===state.selected);if(!f){alertBox("垃圾桶","請先選取項目。");return}if(!confirm(`確定將「${f.name}」移至垃圾桶？`))return;try{if(state.mode==="live")await api("files/"+f.id,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({trashed:true})});else{state.files=state.files.filter(x=>x.id!==f.id);state.trash.push(f);saveFS()}state.selected=null;refreshDrive()}catch(e){alertBox("操作失敗",e.message)}}
+function openNewTextWindow(){createWindow("SimpleText — 新增純文字",`<div style="padding:10px;display:flex;flex-direction:column;gap:8px;height:100%"><input id="text-file-name" class="plat-input" value="未命名.txt"><textarea id="text-file-content" class="plat-input" style="flex:1;resize:none"></textarea><button class="plat-btn primary" onclick="saveTextFile()">儲存至目前資料夾</button></div>`,480,350)}
+async function saveTextFile(){const name=$("text-file-name").value.trim()||"未命名.txt",content=$("text-file-content").value;try{if(state.mode==="live"){const meta={name,mimeType:"text/plain",parents:state.folderId==="root"?[]:[state.folderId]};const form=new FormData();form.append("metadata",new Blob([JSON.stringify(meta)],{type:"application/json"}));form.append("file",new Blob([content],{type:"text/plain"}));const r=await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart",{method:"POST",headers:{Authorization:"Bearer "+state.accessToken},body:form});if(!r.ok)throw Error(await r.text())}else{state.files.push({id:"demo-"+Date.now(),name,mimeType:"text/plain",parents:state.folderId==="root"?[]:[state.folderId],modifiedTime:now(),size:new Blob([content]).size,content});saveFS()}refreshDrive();alertBox("儲存完成",name+" 已建立。")}catch(e){alertBox("儲存失敗",e.message)}}
+function setViewMode(v){state.view=v;renderDrive();$("cs-view-text").textContent=v==="icon"?"圖像":"列表"}function toggleViewMode(){setViewMode(state.view==="icon"?"list":"icon")}function sortItemsBy(v){state.sort=v;renderDrive()}
+function openAboutDialog(){alertBox("關於 Macintosh","Mac OS 9 Platinum 風格的 Google Drive 桌面介面。展示模式支援本機瀏覽器儲存；Live 模式透過 Google Drive API 操作雲端檔案。")}
+function openGetInfo(){const f=state.items.find(x=>x.id===state.selected);alertBox("項目簡介",f?`名稱：${f.name}\n類型：${f.mimeType}\n大小：${formatSize(f.size||0)}\n修改日期：${f.modifiedTime||"—"}`:"請先選取檔案。")}
+function downloadSelectedItem(){const f=state.items.find(x=>x.id===state.selected);if(!f){alertBox("下載檔案","請先選取檔案。");return}if(state.mode==="live"){window.open(`https://drive.google.com/uc?export=download&id=${f.id}`,"_blank","noopener")}else{const blob=new Blob([f.content||"展示模式範例檔案"],{type:f.mimeType||"application/octet-stream"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=f.name;a.click();URL.revokeObjectURL(a.href)}}
+function copyShareLink(){const f=state.items.find(x=>x.id===state.selected);if(!f){alertBox("複製連結","請先選取檔案。");return}const link=f.webViewLink||`https://drive.google.com/file/d/${f.id}/view`;navigator.clipboard?.writeText(link).then(()=>alertBox("已複製",link)).catch(()=>alertBox("分享連結",link))}
+function selectAllItems(){const f=getCurrentFiles();if(f.length){state.selected=f[0].id;renderDrive()}}function clearSelection(){state.selected=null;renderDrive()}
+function openTrashWindow(){createWindow("垃圾桶",`<div style="padding:12px"><p>展示模式垃圾桶項目</p>${state.trash.map(f=>`<div>${iconFor(f)} ${esc(f.name)}</div>`).join("")||"垃圾桶是空的"}</div>`,400,300)}
+function confirmEmptyTrash(){if(confirm("確定清空展示模式垃圾桶？")){state.trash=[];saveFS();openTrashWindow()}}
+function resetDemoData(){if(!confirm("確定重置展示模式範例資料？"))return;state.files=seed();state.trash=[];saveFS();state.folderId="root";state.folderStack=[];refreshDrive()}
+function toggleSound(){state.soundEnabled=!state.soundEnabled;$("cs-sound-icon").textContent=state.soundEnabled?"🔊":"🔇";$("menu-sound-state").textContent=state.soundEnabled?"開啟":"關閉";sound()}
+function toggleControlStrip(){$("control-strip").classList.toggle("collapsed")}
+function selectDeskIcon(e,id){e.stopPropagation();document.querySelectorAll(".desk-icon").forEach(x=>x.classList.remove("selected"));document.querySelector(`[data-desk="${id}"]`)?.classList.add("selected")}
+function handleDesktopClick(e){if(e.target.id==="desktop"||e.target.id==="windows-layer"){document.querySelectorAll(".menu-item.active").forEach(x=>x.classList.remove("active"))}}
+function handleTrashDragOver(e){e.preventDefault();$("desk-trash").classList.add("drag-over")}function handleTrashDragLeave(){$("desk-trash").classList.remove("drag-over")}function handleTrashDrop(e){e.preventDefault();handleTrashDragLeave();moveSelectedToTrash()}
+document.querySelectorAll(".menu-item[data-menu]").forEach(m=>m.addEventListener("click",e=>{e.stopPropagation();const active=m.classList.contains("active");document.querySelectorAll(".menu-item.active").forEach(x=>x.classList.remove("active"));if(!active)m.classList.add("active")}));
+document.addEventListener("click",e=>{if(!e.target.closest(".menu-item"))document.querySelectorAll(".menu-item.active").forEach(x=>x.classList.remove("active"))});
+function tick(){$("clock-display").textContent=new Date().toLocaleTimeString("zh-TW",{hour:"2-digit",minute:"2-digit"})}tick();setInterval(tick,30000);
+$("trash-svg-container").innerHTML='<svg width="36" height="36" viewBox="0 0 36 36"><path d="M8 10h20l-2 22H10z" fill="#DDD" stroke="#000"/><path d="M6 8h24M13 5h10" stroke="#000" stroke-width="2"/><path d="M14 13v15M22 13v15" stroke="#888"/></svg>';
+updateConnectionUI();window.addEventListener("error",e=>console.error("Mac OS 9:",e.message));
+Object.assign(window,{openAboutDialog,openDriveWindow,openSetupWindow,openNewTextWindow,toggleSound,promptNewFolder,triggerFileUpload,openSelectedItem:()=>state.selected&&openItem(state.selected),openGetInfo,promptRenameSelected,downloadSelectedItem,moveSelectedToTrash,selectAllItems,clearSelection,copyShareLink,setViewMode,sortItemsBy,refreshDrive,openTrashWindow,confirmEmptyTrash,resetDemoData,signOutGoogle,saveAndConnectGoogle,resetDefaultClientId,initGoogleClient,saveTextFile,selectItem,openItem,navigateUpFolder,goRoot,handleLocalFilesSelected,toggleViewMode,toggleControlStrip,selectDeskIcon,handleDesktopClick,handleTrashDragOver,handleTrashDragLeave,handleTrashDrop});
+})();
+</script>
+</body>
+</html>
